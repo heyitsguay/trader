@@ -1,24 +1,18 @@
 """A location the player can travel to to trade with Farmers.
 
 """
-from typing import Callable, Dict
-
-from good import Good
+from .good import Good
+from .noise_controller import NoiseController
 
 
 class Location:
     def __init__(
             self,
             name: str,
-            location_x: float,
-            location_y: float,
-            year_length: int,
-            prod_fns: Dict[Good, Callable[[float], float]]):
+            noise_controller: NoiseController):
         self.name = name
-        self.location_x = location_x
-        self.location_y = location_y
-        self.year_length = year_length
-        self.prod_fns = prod_fns
+        self.noise_controller = noise_controller
+        self.location = self.noise_controller.sample_location()
         return
 
     def prod_rate(self, good: Good, day: int) -> float:
@@ -32,4 +26,5 @@ class Location:
             (float): The production rate for the good.
 
         """
-        return self.prod_fns[good](day / self.year_length)
+        return good.base_prod_rate + self.noise_controller.sample_good_prod(
+            good, day, self.location) * good.prod_rate_multiplier
