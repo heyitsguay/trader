@@ -7,11 +7,11 @@ from trader.good import Good
 from trader.location import Location
 from trader.noise_controller import NoiseController
 
-wheat = Good('wheat', 0.1, 2, 16, 2)
-corn = Good('corn', 0.25, 1.6, 12, 2.3)
-apples = Good('apples', 0.5, 1, 10, 2.8)
-milk = Good('milk', 1.5, 1.2, 5, 3.3)
-steak = Good('steak', 5, 0.3, 5, 4)
+wheat = Good('wheat', 0.1, 2, 32, 2)
+corn = Good('corn', 0.25, 1.6, 24, 2.5)
+apples = Good('apples', 0.5, 1, 20, 3.5)
+milk = Good('milk', 1.5, 1.2, 10, 4)
+steak = Good('steak', 5, 0.3, 10, 5)
 goods = [wheat, corn, apples, milk, steak]
 
 year_length = 100
