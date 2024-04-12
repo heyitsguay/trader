@@ -15,10 +15,14 @@ class Good:
             base_price: float,
             base_prod_rate: float,
             prod_rate_multiplier: float,
-            prod_rate_exponent: float):
+            prod_rate_exponent: float,
+            popularity: float,
+            max_amount: int):
         self.name = name
         self.base_price = base_price
         self.base_prod_rate = base_prod_rate
         self.prod_rate_multiplier = prod_rate_multiplier
         self.prod_rate_exponent = prod_rate_exponent
+        self.popularity = popularity
+        self.max_amount = max_amount
         return

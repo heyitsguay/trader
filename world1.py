@@ -1,17 +1,19 @@
 """First attempt at a game world
 
 """
-import random
+import names
+import numpy as np
 
+from trader.farmer import Farmer
 from trader.good import Good
 from trader.location import Location
 from trader.noise_controller import NoiseController
 
-wheat = Good('wheat', 0.1, 2, 32, 2)
-corn = Good('corn', 0.25, 1.6, 24, 2.5)
-apples = Good('apples', 0.5, 1, 20, 3.5)
-milk = Good('milk', 1.5, 1.2, 10, 4)
-steak = Good('steak', 5, 0.3, 10, 5)
+wheat = Good('wheat', 0.1, 2, 32, 2, 10, 100)
+corn = Good('corn', 0.25, 1.6, 24, 2.5, 8, 100)
+apples = Good('apples', 0.5, 1, 30, 3.5, 6, 80)
+milk = Good('milk', 1.5, 1.2, 10, 4, 7, 50)
+steak = Good('steak', 5, 0.6, 10, 5, 4, 40)
 goods = [wheat, corn, apples, milk, steak]
 
 year_length = 100
@@ -23,9 +25,17 @@ prod_params = {
     'spatial_res': 128,
     'temporal_octaves': 2,
     'temporal_res': 64,
-    'noise_exp': 4}
+}
 
-noise_controller = NoiseController(seed, goods, year_length, prod_params)
+farmer_parms = {
+    'mean_n_goods': 2,
+    'min_n_goods': 1,
+}
+
+noise_controller = NoiseController(
+    seed, goods, year_length, prod_params, farmer_parms)
+
+rng = np.random.default_rng(seed)
 
 locations = [
     Location('Mansfield', noise_controller),
@@ -42,11 +52,17 @@ locations = [
     Location('Burlingame', noise_controller),
 ]
 
+farmers = []
+for location in locations:
+    n_farmers_at_location = np.minimum(4, rng.geometric(0.55))
+    for n in range(n_farmers_at_location):
+        farmers.append(Farmer(
+            names.get_full_name(), location, noise_controller, goods))
+
 
 def main():
-    for location in locations:
-        print(f'{location.name}:')
-        print('  ', ', '.join([f'{good.name}: {location.prod_rate(good, 0):.1f}' for good in goods]))
+    for farmer in farmers:
+        print(farmer)
     return
 
 

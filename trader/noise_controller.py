@@ -11,6 +11,8 @@ from perlin_numpy import generate_perlin_noise_3d
 
 from .good import Good
 
+MIN_FARMER_PROD_PROBABILITY = 0.15
+
 
 class NoiseController:
     def __init__(
@@ -18,7 +20,8 @@ class NoiseController:
             seed: int,
             goods: List[Good],
             year_length: int,
-            prod_params: Dict[str, int]):
+            prod_params: Dict[str, int],
+            farmer_params: Dict[str, int]):
         """
 
         Args:
@@ -30,8 +33,9 @@ class NoiseController:
                 spatial_res (int): Spatial perlin noise resolution.
                 temporal_octaves (int): Number of temporal perlin noise octaves.
                 temporal_res (int): Temporal perlin noise resolution.
-                noise_exp (float): Raise the ([0,1]-scaled) perlin noise array
-                    to this power elementwise, to make large values more rare.
+            farmer_params (Dict[str, int]): Farmer random generation params:
+                mean_n_goods (float): Mean number of goods a farmer produces.
+                min_n_goods (float): Minimum number of goods a farmer produces.
         """
         self.seed = seed
         random.seed(seed)
@@ -39,16 +43,43 @@ class NoiseController:
 
         self.year_length = year_length
         self.prod_params = prod_params
+        self.farmer_params = farmer_params
+
         self.good_prod_maps = {
-            good: self.generate_good_prod(self.seed + i, good)
-            for i, good in enumerate(goods)}
+            good: self.generate_good_prod(good)
+            for good in goods}
         return
 
-    def generate_good_prod(self, seed: int, good: Good) -> np.ndarray:
+    def generate_farmer_good_dist(self, goods: List[Good]) -> Dict[Good, float]:
+        """Produce a farmer production distribution over available goods.
+
+        Args:
+            goods (List[Good]): List of available goods.:
+
+        Returns:
+            good_dist (Dict[Good, float]): Farmer production rates per good.
+
+        """
+        mean_n_goods = self.farmer_params['mean_n_goods']
+        min_n_goods = self.farmer_params['min_n_goods']
+
+        popularities = np.array([good.popularity for good in goods])
+        pop_probs = popularities / np.sum(popularities)
+        scaled_pop_probs = np.minimum(mean_n_goods * pop_probs, 1)
+        # Keep trying to generate a subset until the min is achieved
+        found_n_goods = -1
+        while found_n_goods < min_n_goods:
+            selections = np.random.rand(len(goods)) < scaled_pop_probs
+            found_n_goods = selections.sum()
+        prod_rates = np.maximum(
+            np.random.rand(len(goods)), MIN_FARMER_PROD_PROBABILITY)
+        selected_prod_rates = selections * prod_rates
+        return {good: rate for good, rate in zip(goods, selected_prod_rates)}
+
+    def generate_good_prod(self, good: Good) -> np.ndarray:
         """Generate a 3D good production rate map.
 
         Args:
-            seed (int): Perlin noise seed.
             good (Good): Good this production rate map is for.
 
         Returns:
@@ -59,7 +90,6 @@ class NoiseController:
         ox = self.prod_params['spatial_octaves']
         nt = self.prod_params['temporal_res']
         ot = self.prod_params['temporal_octaves']
-        noise_exp = self.prod_params['noise_exp']
         noise = generate_perlin_noise_3d(
             (nt, nx, nx), (ot, ox, ox), tileable=(True, False, False))
         # Rescale and exponentiate
@@ -85,6 +115,23 @@ class NoiseController:
             day / self.year_length,
             location[0],
             location[1])
+
+    def sample_good_increment(self, prod_rate: float) -> int:
+        """Calculate a good's per-turn quantity increment based on its
+        production rate.
+
+        Args:
+            prod_rate (float): Per-turn production rate
+
+        Returns:
+            increment (int): Good quantity increment.
+
+        """
+        if prod_rate == 0:
+            return 0
+        if prod_rate <= 1:
+            return round(np.random.exponential(prod_rate))
+        return np.maximum(0, round(np.random.exponential(prod_rate + 1) - 1))
 
     def sample_location(self) -> Tuple[float, float]:
         """Sample a 2D "location" in the range [0,1]x[0,1].
