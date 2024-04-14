@@ -25,4 +25,11 @@ class Good:
         self.prod_rate_exponent = prod_rate_exponent
         self.popularity = popularity
         self.max_amount = max_amount
+
+        # Calculated after initialization
+        self.base_abundance = None
+        return
+
+    def set_base_abundance(self, abundance: float):
+        self.base_abundance = abundance
         return

@@ -1,16 +1,18 @@
 """Hold references to noise objects used in random feature generation.
 
 """
+import os
 import random
 
 import numpy as np
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from perlin_numpy import generate_perlin_noise_3d
 
 from .good import Good
 
+LOCATION_GRID_SIZE = 256
 MIN_FARMER_PROD_PROBABILITY = 0.15
 
 
@@ -21,7 +23,8 @@ class NoiseController:
             goods: List[Good],
             year_length: int,
             prod_params: Dict[str, int],
-            farmer_params: Dict[str, int]):
+            location_params: Dict[str, Any],
+            farmer_params: Dict[str, float]):
         """
 
         Args:
@@ -33,7 +36,16 @@ class NoiseController:
                 spatial_res (int): Spatial perlin noise resolution.
                 temporal_octaves (int): Number of temporal perlin noise octaves.
                 temporal_res (int): Temporal perlin noise resolution.
-            farmer_params (Dict[str, int]): Farmer random generation params:
+            location_params (Dict[str, Any]): Location generation params:
+                n_locations (int): Number of locations.
+                n_clusters (int): Number of location clusters. Each cluster
+                    contributes a Gaussian function to an empirical probability
+                    density function.
+                amp_min (float): Minimum cluster amplitude.
+                amp_max (float): Maximum cluster amplitude.
+                std_min (float): Minimum cluster standard deviation.
+                std_max (float): Maximum cluster standard deviation.
+            farmer_params (Dict[str, float]): Farmer generation params:
                 mean_n_goods (float): Mean number of goods a farmer produces.
                 min_n_goods (float): Minimum number of goods a farmer produces.
         """
@@ -43,7 +55,10 @@ class NoiseController:
 
         self.year_length = year_length
         self.prod_params = prod_params
+        self.location_params = location_params
         self.farmer_params = farmer_params
+
+        self.location_cdf = self.init_location_density()
 
         self.good_prod_maps = {
             good: self.generate_good_prod(good)
@@ -97,6 +112,41 @@ class NoiseController:
         noise = noise ** good.prod_rate_exponent
         return noise
 
+    def init_location_density(self) -> np.ndarray:
+        """Initialize the location density distribution.
+
+        Distribution is a sum of Gaussians with random means, amplitudes, and
+        widths.
+
+        Returns:
+            location_cdf (np.ndarray): CDF of the constructed location density
+                function.
+
+        """
+        n_clusters = self.location_params['n_clusters']
+        amp_min = self.location_params['amp_min']
+        amp_max = self.location_params['amp_max']
+        std_min = self.location_params['std_min']
+        std_max = self.location_params['std_max']
+
+        grid_y, grid_x = np.meshgrid(
+            np.linspace(0, 1, LOCATION_GRID_SIZE),
+            np.linspace(0, 1, LOCATION_GRID_SIZE))
+        density = np.zeros((LOCATION_GRID_SIZE, LOCATION_GRID_SIZE))
+
+        amps = amp_min + (amp_max - amp_min) * np.random.rand(n_clusters)
+        means = np.random.rand(n_clusters, 2)
+        stds = std_min + (std_max - std_min) * np.random.rand(n_clusters)
+
+        for amp, mean, std in zip(amps, means, stds):
+            gaussian = amp * np.exp(
+                -((grid_y - mean[0])**2 + (grid_x - mean[1])**2) / (2 * std**2))
+            density += gaussian
+        density /= np.sum(density)
+
+        location_cdf = np.cumsum(density.flatten())
+        return location_cdf
+
     def sample_good_prod(
             self, good: Good, day: int, location: Tuple[float, float]) -> float:
         """Sample a good's production rate map at a time and location.
@@ -116,33 +166,58 @@ class NoiseController:
             location[0],
             location[1])
 
-    def sample_good_increment(self, prod_rate: float) -> int:
-        """Calculate a good's per-turn quantity increment based on its
+    def sample_good_delta(
+            self, prod_rate: float, amount: int, max_amount: int) -> int:
+        """Calculate a good's per-turn quantity change based on its
         production rate.
 
+        Increments are stochastic, and probability of applying an increment
+        drops to 0 as the current amount approaches some maximum.
+
+        Decrements are stochastic, and probability of appplying a decrement
+        drops to 0 as the current amount approaches 0.
+
         Args:
-            prod_rate (float): Per-turn production rate
+            prod_rate (float): Per-turn production rate.
+            amount (int): Current amount of the good.
+            max_amount (int):
 
         Returns:
             increment (int): Good quantity increment.
 
         """
-        if prod_rate == 0:
-            return 0
-        if prod_rate <= 1:
-            return round(np.random.exponential(prod_rate))
-        return np.maximum(0, round(np.random.exponential(prod_rate + 1) - 1))
+        increment = 0
+        # Calculate an increment with some probability
+        p_increment = min(1.0, max(0.0, (max_amount - amount) / (amount + 0.0001)))
+        if random.random() < p_increment:
+            if prod_rate == 0:
+                increment = 0
+            elif prod_rate <= 1:
+                increment = round(np.random.exponential(prod_rate))
+            else:
+                increment = np.maximum(0, round(np.random.exponential(prod_rate + 1) - 1))
+
+        decrement = 0
+        # Calculate a decrement with some probability
+        p_decrement = min(1.0, max(0.0, 0.25 + 0.5 * (amount / max_amount) / (1 + abs(1 - amount / max_amount))))
+        if random.random() < p_decrement:
+            decrement = (0.05 + 0.2 * random.random() * random.random()) * amount
+        return increment - decrement
 
     def sample_location(self) -> Tuple[float, float]:
-        """Sample a 2D "location" in the range [0,1]x[0,1].
+        """Sample a 2D "location" in the range [0,1]x[0,1] based on the
+        constructed location CDF.
 
         Returns:
             location_x: X location.
             location_y: Y location.
 
         """
-        location_x = random.random()
-        location_y = random.random()
+        r = np.random.rand()
+        idx = np.searchsorted(self.location_cdf, r)
+        y_idx, x_idx = np.unravel_index(idx, (LOCATION_GRID_SIZE, LOCATION_GRID_SIZE))
+        location_x = x_idx / LOCATION_GRID_SIZE
+        location_y = y_idx / LOCATION_GRID_SIZE
         return location_x, location_y
 
     @staticmethod
