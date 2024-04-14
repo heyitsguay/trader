@@ -47,7 +47,7 @@ class Location:
         base_abundances = {good: good.base_abundance for good in self.goods}
         prices = {
             good: round(base_prices[good] * np.clip((
-                    base_abundances[good] / (0.1 + self.supply_scores[good]))**self.supply_sensitivity, 0.25, 4), 2)
+                    base_abundances[good] / max(0.1, self.supply_scores[good]))**self.supply_sensitivity, 0.25, 4), 2)
             for good in self.goods}
         return prices
 

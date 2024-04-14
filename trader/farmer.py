@@ -54,7 +54,7 @@ class Farmer:
                 prices[good] = base_prices[good]
             else:
                 prices[good] = round(base_prices[good] * np.clip((
-                    base_abundances[good] / (0.1 + self.inventory[good]))**self.supply_sensitivity, 0.5, 2), 2)
+                    base_abundances[good] / max(0.1, self.inventory[good]))**self.supply_sensitivity, 0.5, 2), 2)
         return prices
 
     def init(self) -> None:
