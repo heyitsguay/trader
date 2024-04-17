@@ -52,6 +52,7 @@ class NoiseController:
         self.seed = seed
         random.seed(seed)
         np.random.seed(seed)
+        self.rng = np.random.default_rng(seed)
 
         self.year_length = year_length
         self.prod_params = prod_params
@@ -84,10 +85,10 @@ class NoiseController:
         # Keep trying to generate a subset until the min is achieved
         found_n_goods = -1
         while found_n_goods < min_n_goods:
-            selections = np.random.rand(len(goods)) < scaled_pop_probs
+            selections = self.rng.random(len(goods)) < scaled_pop_probs
             found_n_goods = selections.sum()
         prod_rates = np.maximum(
-            np.random.rand(len(goods)), MIN_FARMER_PROD_PROBABILITY)
+            self.rng.random(len(goods)), MIN_FARMER_PROD_PROBABILITY)
         selected_prod_rates = selections * prod_rates
         return {good: rate for good, rate in zip(goods, selected_prod_rates)}
 
@@ -134,9 +135,9 @@ class NoiseController:
             np.linspace(0, 1, LOCATION_GRID_SIZE))
         density = np.zeros((LOCATION_GRID_SIZE, LOCATION_GRID_SIZE))
 
-        amps = amp_min + (amp_max - amp_min) * np.random.rand(n_clusters)
-        means = np.random.rand(n_clusters, 2)
-        stds = std_min + (std_max - std_min) * np.random.rand(n_clusters)
+        amps = amp_min + (amp_max - amp_min) * self.rng.random(n_clusters)
+        means = self.rng.random((n_clusters, 2))
+        stds = std_min + (std_max - std_min) * self.rng.random(n_clusters)
 
         for amp, mean, std in zip(amps, means, stds):
             gaussian = amp * np.exp(
@@ -193,9 +194,9 @@ class NoiseController:
             if prod_rate == 0:
                 increment = 0
             elif prod_rate <= 1:
-                increment = round(np.random.exponential(prod_rate))
+                increment = round(self.rng.exponential(prod_rate))
             else:
-                increment = np.maximum(0, round(np.random.exponential(prod_rate + 1) - 1))
+                increment = np.maximum(0, round(self.rng.exponential(prod_rate + 1) - 1))
 
         decrement = 0
         # Calculate a decrement with some probability
@@ -213,7 +214,7 @@ class NoiseController:
             location_y: Y location.
 
         """
-        r = np.random.rand()
+        r = self.rng.random()
         idx = np.searchsorted(self.location_cdf, r)
         y_idx, x_idx = np.unravel_index(idx, (LOCATION_GRID_SIZE, LOCATION_GRID_SIZE))
         location_x = x_idx / LOCATION_GRID_SIZE

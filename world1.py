@@ -39,17 +39,20 @@ location_params = {
     'amp_max': 0.075,
     'std_min': 0.08,
     'std_max': 0.25,
+    'supply_sensitivity': 1,
 }
 
 farmer_parms = {
     'mean_n_goods': 2,
     'min_n_goods': 1,
-}
-
-pricing_params = {
-    'location_supply_sensitivity': 1,
-    'trader_supply_sensitivity': 1,
-    'trader_spread_factor': 0.1,
+    'supply_sensitivity': 1,
+    'spread': 0.1,
+    'lower_money_multiplier': 10,
+    'upper_money_multiplier': 30,
+    'money_growth_factor': 1.5,
+    'p_money_growth': 0.36,
+    'money_decay_factor': 0.9,
+    'p_money_decay': 0.4,
 }
 
 
@@ -86,7 +89,7 @@ def main():
     location_names = list(rng.choice(location_names, size=n_locations))
     # Create locations
     locations = [
-        Location(name, pricing_params['location_supply_sensitivity'], noise_controller)
+        Location(name, location_params['supply_sensitivity'], noise_controller)
         for name in location_names]
     # Create location distance matrix
     location_distance_matrix = np.zeros((n_locations, n_locations))
