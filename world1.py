@@ -55,6 +55,11 @@ farmer_parms = {
     'p_money_decay': 0.4,
 }
 
+player_params = {
+    'init_money': 10,
+    'travel_cost_multiplier': 2,
+}
+
 
 def calculate_base_abundance(good: Good, farmers: List[Farmer]) -> float:
     """Calculate baseline abundance for a good.
@@ -125,7 +130,7 @@ def main():
             f.set_size_inches(10, 10)
             for inv in invs:
                 ax.plot(inv)
-            ax.set_title(good.name)
+            ax.set_title(good)
             plt.show()
     return
 

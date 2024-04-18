@@ -30,6 +30,12 @@ class Good:
         self.base_abundance = None
         return
 
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
     def set_base_abundance(self, abundance: float):
         self.base_abundance = abundance
         return

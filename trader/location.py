@@ -31,6 +31,19 @@ class Location:
         self.prices: Dict[Good, float] = {}
         return
 
+    def __eq__(self, other: 'Location'):
+        if isinstance(other, Location):
+            return self.name == other.name \
+                and self.location[0] == other.location[0] \
+                and self.location[1] == other.location[1]
+        return False
+
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
     def add_farmer(self, farmer: 'Farmer'):
         """Add a Farmer to this Location."""
         self.farmers.append(farmer)
