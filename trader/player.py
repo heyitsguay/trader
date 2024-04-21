@@ -14,12 +14,10 @@ from .noise_controller import NoiseController
 class Player:
     def __init__(
             self,
-            name: str,
             location: Location,
             player_params: Dict[str, Any],
             noise_controller: NoiseController,
             goods: List[Good]):
-        self.name = name
         self.location = location
         self.params = player_params
         self.noise_controller = noise_controller
@@ -116,6 +114,16 @@ class Player:
         self.trading_farmer = None
         return True, f'Traveled to {location} for ${travel_cost:.2f}.'
 
+    def print_money(self) -> str:
+        """Print the Player's current amount of money, properly formatted.
+
+        Returns:
+            money_str (str): Formatted string of the Player's current amount of
+                money.
+
+        """
+        return f'${self.money:.2f}'
+
     def sell(self, good: Good, quantity: int, farmer: Farmer) -> Tuple[bool, str]:
         """Sell a quantity of a Good to a Farmer.
 
@@ -141,4 +149,3 @@ class Player:
         farmer.inventory[good] += quantity
         farmer.money -= sell_price
         return True, f'Sold {quantity} of {good} to {farmer.name} for ${sell_price:.2f}.'
-
