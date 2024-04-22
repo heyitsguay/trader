@@ -74,6 +74,20 @@ class Player:
         """
         return self.params['init_money']
 
+    def location_travel_cost(self, location: Location) -> float:
+        """Compute the cost of moving to `location`.
+
+        Args:
+            location (Location): Location to compute cost to.
+
+        Returns:
+            cost (float): Cost of moving to `location`.
+
+        """
+        cost = round(self.params['travel_cost_multiplier'] *
+            location.distance_to(self.location), 2)
+        return cost
+
     def move_farmer(self, farmer: Farmer) -> Tuple[bool, str]:
         """Within a Location, move to trade with a Farmer.
 
@@ -105,8 +119,7 @@ class Player:
         """
         if location == self.location:
             return False, f'Already at {location}.'
-        travel_cost = round(self.params['travel_cost_multiplier'] *
-            location.distance_to(self.location), 2)
+        travel_cost = self.location_travel_cost(location)
         if travel_cost > self.money:
             return False, f'${travel_cost:.2f} required to travel to {location}.'
         self.money -= travel_cost

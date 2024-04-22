@@ -2,13 +2,18 @@
 
 """
 import os
+import re
 
 import matplotlib.pyplot as plt
 import names
 import numpy as np
+import rich
 
 from enum import Enum
 from typing import List
+
+from rich.console import Console
+from rich.table import Table
 
 from .farmer import Farmer
 from .good import Good
@@ -19,6 +24,13 @@ from .player import Player
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 LOCATIONS_FILE = os.path.join(DATA_DIR, 'locations.txt')
+
+CLEAN_PATTERN = re.compile(r'^[a-zA-Z0-9]')
+
+
+class Actions(Enum):
+    MOVE = 1
+    TRADE = 2
 
 
 class WorldState(Enum):
@@ -106,6 +118,8 @@ class World:
 
         self.state = WorldState.INIT
 
+        self.console = Console()
+
         # Initial debug information
         if self.debug:
             print(f'# Farmers: {len(self.farmers)}')
@@ -143,6 +157,20 @@ class World:
         total_inventory = sum([f.inventory[good] for f in farmers])
         baseline_abundance = total_inventory / n_farmers
         return baseline_abundance
+
+    @staticmethod
+    def clean_string(string: str) -> str:
+        """Remove alphanumeric characters from a string and make all characters
+        lowercase.
+
+        Args:
+            string (str): A string.
+
+        Returns:
+            cleaned (str): A cleaned string.
+
+        """
+        return CLEAN_PATTERN.sub('', string).lower()
 
     def init_farmers(self) -> List[Farmer]:
         farmers = []
@@ -192,17 +220,42 @@ class World:
         tomorrow = (self.today + 1) % self.year_length
         return tomorrow
 
-    def step(self):
+    def step(self, advance_day: bool):
+        """Take one step in the game.
+
+        Args:
+            advance_day (bool): If True, game states where the day can advance
+                will have the day advance.
+
+        Returns: None
+
+        """
+        player_money = self.player.print_money()
         if self.state == WorldState.INIT:
             print('Welcome to TRADER.')
             print(f'You arrive at {self.player.location} with '
-                  f'{self.player.print_money()} in your pocket and a dream to'
+                  f'{player_money} in your pocket and a dream to'
                   f'find your fortune.')
             self.state = WorldState.AT_LOCATION
 
         if self.state == WorldState.AT_LOCATION:
-            self.today = self.next_day()
-            n_farmers = len(self.player.location.farmers)
-            print(f'Day {self.today+1}/{self.year_length} at {self.player.location}. You can trade with:')
-            for i, farmer in enumerate(self.player.location.farmers):
-                print(f' {i+1}. {farmer.name}')
+            if advance_day:
+                self.today = self.next_day()
+            print(f'\nDay {self.today+1}/{self.year_length} at {self.player.location}. You can trade with:')
+
+            valid_action_selected = False
+            next_action = None
+            while not valid_action_selected:
+                print(f'\nWhat would you like to do?\n  1. Move\n  2. Trade')
+                action = self.clean_string(input(f'({player_money}) > '))
+                if action in ['1', 'move']:
+                    next_action = Actions.MOVE
+                    valid_action_selected = True
+                elif action in ['2', 'trade']:
+                    next_action = Actions.TRADE
+                    valid_action_selected = True
+                else:
+                    print('Invalid action.')
+            if next_action == Actions.MOVE:
+                print(f'\nWhere do you want to move to?')
+
