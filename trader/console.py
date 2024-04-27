@@ -11,6 +11,7 @@ from typing import Dict, Tuple
 
 from .enums import Action, WorldState
 from .farmer import Farmer
+from .good import Good
 from .location import Location
 from .player import Player
 from .util import clean_string
@@ -52,6 +53,8 @@ class Console(RichConsole):
 
         if state == WorldState.AT_LOCATION:
             actions = [Action.MOVE, Action.TRADE]
+        elif state == WorldState.AT_FARMER:
+            actions = [Action.BACK, Action.BUY, Action.SELL]
         else:
             raise NotImplementedError(f'No action table for {state.name}')
 
@@ -62,8 +65,40 @@ class Console(RichConsole):
 
         return table, action_dict
 
-    def farmer_table(self, player: Player) -> \
-            Tuple[Table, Dict[str, Farmer]]:
+    def buy_table(self, player: Player) -> Table:
+        """Compute a table of available goods at the Farmer that the Player
+        is currently trading with.
+
+        Args:
+            player (Player): The Player. Pull current Farmer and money details.
+
+        Returns:
+            table (Table): Table of available goods to buy.
+
+        """
+        if player.trading_farmer is None:
+            raise ValueError('No trading farmer is available')
+
+        table = Table(show_header=False)
+        table.add_column('Quantity', justify='left')
+        table.add_column('Name')
+        table.add_column('Price', justify='left')
+
+        farmer = player.trading_farmer
+        inventory = farmer.inventory
+        available_goods = [good for good in inventory if inventory[good] > 0]
+        available_goods = sorted(available_goods, key=lambda g: g.base_price)
+        available_quantities = [inventory[g] for g in available_goods]
+        prices = [farmer.buy_price(g) for g in available_goods]
+
+        for good, quant, price in zip(available_goods, available_quantities, prices):
+            style = self.style_budget(price, player.money)
+            table.add_row(
+                f'{quant}', good.name, f'${price:.2f}', style=style)
+
+        return table
+
+    def farmer_table(self, player: Player) -> Tuple[Table, Dict[str, Farmer]]:
         """Compute a table of Farmers the Player can trade with at their
         current location.
 
@@ -160,6 +195,29 @@ class Console(RichConsole):
             table.add_row(*row)
 
         return table, can_travel_dict, cannot_travel_dict
+
+    def sell_table(self, player: Player) -> Table:
+        if player.trading_farmer is None:
+            raise ValueError('No trading farmer is available')
+
+        table = Table(show_header=False)
+        table.add_column('Quantity', justify='left')
+        table.add_column('Name')
+        table.add_column('Price', justify='left')
+
+        farmer = player.trading_farmer
+        inventory = player.inventory
+        available_goods = [good for good in inventory if inventory[good] > 0]
+        available_goods = sorted(available_goods, key=lambda g: g.base_price)
+        available_quantities = [inventory[g] for g in available_goods]
+        prices = [farmer.sell_price(g) for g in available_goods]
+
+        for good, quant, price in zip(available_goods, available_quantities, prices):
+            style = self.style_budget(price, farmer.money)
+            table.add_row(
+                f'{quant}', good.name, f'${price:.2f}', style=style)
+
+        return table
 
     @staticmethod
     def style_budget(cost: float, budget: float) -> str:

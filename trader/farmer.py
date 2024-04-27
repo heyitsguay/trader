@@ -42,6 +42,19 @@ class Farmer:
         inv_string = ', '.join([f'{k.name}: {v}' for k, v in self.inventory.items()])
         return f'{self.name}:  {inv_string}'
 
+    def buy_price(self, good) -> float:
+        """Compute the buy price of a given Good based on the computed price
+        and spread.
+
+        Args:
+            good (Good): Good to compute the buy price of.
+
+        Returns:
+            price (float): Buy price of the given Good.
+
+        """
+        return round(self.prices[good] * (1 + self.params['spread']), 2)
+
     def compute_prices(self) -> Dict[Good, float]:
         """Compute prices for all Goods.
 
@@ -57,8 +70,8 @@ class Farmer:
                 prices[good] = base_prices[good]
             else:
                 sensitivity = self.params['supply_sensitivity']
-                prices[good] = round(base_prices[good] * np.clip((
-                    base_abundances[good] / max(0.1, self.inventory[good]))**sensitivity, 0.5, 2), 2)
+                prices[good] = base_prices[good] * np.clip((
+                    base_abundances[good] / max(0.1, self.inventory[good]))**sensitivity, 0.5, 2)
         return prices
 
     def init(self) -> None:
@@ -104,6 +117,19 @@ class Farmer:
         assert self.dpv > 0, f'Calculated invalid DPV {self.dpv}'
         mult = lower_mult + (upper_mult - lower_mult) * self.noise_controller.rng.random()
         return mult * self.dpv
+
+    def sell_price(self, good) -> float:
+        """Compute the sell price of a given Good based on the computed price
+        and spread.
+
+        Args:
+            good (Good): Good to compute the sell price of.
+
+        Returns:
+            price (float): Sell price of the given Good.
+
+        """
+        return round(self.prices[good] * (1 - self.params['spread']), 2)
 
     def update(self, today: int) -> None:
         """Update farmer variables.

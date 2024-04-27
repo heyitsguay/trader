@@ -5,8 +5,12 @@ from enum import Enum
 
 
 class Action(Enum):
-    MOVE = 1
-    TRADE = 2
+    BACK = 'Back'
+    MOVE = 'Move'
+    TRADE = 'Trade'
+    BUY = 'Buy'
+    SELL = 'Sell'
+
 
 
 class WorldState(Enum):

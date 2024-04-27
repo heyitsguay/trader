@@ -24,6 +24,7 @@ class Player:
         self.goods = goods
 
         self.trading_farmer = None
+        self.last_farmer = None
 
         self.inventory = {good: 0 for good in self.goods}
         self.money = 0
@@ -48,7 +49,7 @@ class Player:
             return False, f'Quantity ({quantity}) must be an integer greater than 0.'
         if farmer.inventory[good] < quantity:
             return False, f'{farmer.name} does not have {quantity} of {good}.'
-        buy_price = round(farmer.prices[good] * (1 + farmer.params['spread']) * quantity, 2)
+        buy_price = round(farmer.buy_price(good) * quantity, 2)
         if buy_price > self.money:
             return False, f'You do not have enough money to buy {quantity} of {good} (${buy_price:.2f}).'
 
@@ -101,7 +102,7 @@ class Player:
         """
         if farmer.location != self.location:
             return False, f'Farmer {farmer.name} not present at {self.location}.'
-        self.trading_farmer = farmer
+        self.set_new_farmer(farmer)
         return True, f'Now trading with {farmer.name}.'
 
     def move_location(self, location: Location) -> Tuple[bool, str]:
@@ -125,6 +126,7 @@ class Player:
         self.money -= travel_cost
         self.location = location
         self.trading_farmer = None
+        self.last_farmer = None
         return True, f'Traveled to {location} for ${travel_cost:.2f}.'
 
     def print_money(self) -> str:
@@ -154,7 +156,7 @@ class Player:
             return False, f'Quantity ({quantity}) must be an integer greater than 0.'
         if self.inventory[good] < quantity:
             return False, f'You do not have {quantity} of {good}.'
-        sell_price = round(farmer.prices[good] * (1 - farmer.params['spread']) * quantity, 2)
+        sell_price = round(farmer.sell_price(good) * quantity, 2)
         if sell_price > farmer.money:
             return False, f'{farmer.name} does not have enough money to buy {quantity} of {good}. (${sell_price:.2f})'
         self.inventory[good] -= quantity
@@ -162,3 +164,16 @@ class Player:
         farmer.inventory[good] += quantity
         farmer.money -= sell_price
         return True, f'Sold {quantity} of {good} to {farmer.name} for ${sell_price:.2f}.'
+
+    def set_new_farmer(self, farmer: Farmer) -> None:
+        """Set a new current trading Farmer.
+
+        Args:
+            farmer (Farmer): New current trading Farmer.
+
+        Returns: None
+
+        """
+        self.last_farmer = self.trading_farmer
+        self.trading_farmer = farmer
+        return
