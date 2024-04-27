@@ -141,18 +141,6 @@ class Location:
             location: distance
             for location, distance in zip(locations, location_distances)}
         return
-    def set_location_distances(self, location_distances: np.ndarray):
-        """Pass in the distances from all Locations to this Location.
-
-        Args:
-            location_distances (np.ndarray): Array of distances from all
-                Locations to this Location.
-
-        Returns: None
-
-        """
-        self.location_distances = location_distances
-        return
 
     def set_locations(self, locations: List['Location']):
         """Set a reference to all Locations.

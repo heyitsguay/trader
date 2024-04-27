@@ -1,29 +1,17 @@
-from math import exp
-from typing import Callable
+import re
 
-e_const = exp(1)
+CLEAN_PATTERN = re.compile(r'^[a-zA-Z0-9]')
 
 
-def bump(a: float, b: float) -> Callable[[float], float]:
-    """Construct a bump function supported on [a, b].
+def clean_string(string: str) -> str:
+    """Remove alphanumeric characters from a string and make all characters
+    lowercase.
 
     Args:
-        a (float): Lower bound of the support interval.
-        b (float): Upper bound of the support interval.
+        string (str): A string.
 
     Returns:
-        bump_fn (Callable[[float], float]): Bump function.
+        cleaned (str): A cleaned string.
 
     """
-    if a >= b:
-        raise ValueError("a must be less than b.")
-
-    # Standard bump function exp(-1/(1-x^2)) is supported on [-1, 1]. Transform
-    # the input variable for support on [a, b].
-    def bump_fn(x: float) -> float:
-        if x <= a or x >= b: return 0
-        y = (x - a) / (b - a)  # Map [a, b] to [0, 1]
-        z = 2 * y - 1  # Map [0, 1] to [-1, 1]
-        return e_const * exp(-1/(1-z**2))
-
-    return bump_fn
+    return CLEAN_PATTERN.sub('', string).lower()

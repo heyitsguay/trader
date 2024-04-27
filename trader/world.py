@@ -2,46 +2,25 @@
 
 """
 import os
-import re
 
 import matplotlib.pyplot as plt
 import names
 import numpy as np
-import rich
 
-from enum import Enum
 from typing import List
 
-from rich.console import Console
-from rich.table import Table
-
+from .console import Console
+from .enums import Action, WorldState
 from .farmer import Farmer
 from .good import Good
 from .location import Location
 from .noise_controller import NoiseController
 from .player import Player
+from .util import clean_string
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 LOCATIONS_FILE = os.path.join(DATA_DIR, 'locations.txt')
-
-CLEAN_PATTERN = re.compile(r'^[a-zA-Z0-9]')
-
-
-class Actions(Enum):
-    MOVE = 1
-    TRADE = 2
-
-
-class WorldState(Enum):
-    INIT = 1
-    AT_LOCATION = 2
-    AT_FARMER = 3
-    MOVE_TO_LOCATION = 4
-    MOVE_TO_FARMER = 5
-    BUYING = 6
-    SELLING = 7
-    GAME_OVER = 8
 
 
 class World:
@@ -158,19 +137,7 @@ class World:
         baseline_abundance = total_inventory / n_farmers
         return baseline_abundance
 
-    @staticmethod
-    def clean_string(string: str) -> str:
-        """Remove alphanumeric characters from a string and make all characters
-        lowercase.
 
-        Args:
-            string (str): A string.
-
-        Returns:
-            cleaned (str): A cleaned string.
-
-        """
-        return CLEAN_PATTERN.sub('', string).lower()
 
     def init_farmers(self) -> List[Farmer]:
         farmers = []
@@ -232,30 +199,93 @@ class World:
         """
         player_money = self.player.print_money()
         if self.state == WorldState.INIT:
-            print('Welcome to TRADER.')
-            print(f'You arrive at {self.player.location} with '
-                  f'{player_money} in your pocket and a dream to'
-                  f'find your fortune.')
+            self.console.print('Welcome to TRADER.')
+            self.console.print(
+                f'You arrive at {self.player.location} with '
+                f'{player_money} in your pocket and a dream to'
+                f'find your fortune.'
+            )
             self.state = WorldState.AT_LOCATION
 
         if self.state == WorldState.AT_LOCATION:
             if advance_day:
                 self.today = self.next_day()
-            print(f'\nDay {self.today+1}/{self.year_length} at {self.player.location}. You can trade with:')
+            self.console.print(
+                f'\nDay {self.today+1}/{self.year_length} in {self.player.location}'
+            )
 
             valid_action_selected = False
             next_action = None
             while not valid_action_selected:
-                print(f'\nWhat would you like to do?\n  1. Move\n  2. Trade')
-                action = self.clean_string(input(f'({player_money}) > '))
-                if action in ['1', 'move']:
-                    next_action = Actions.MOVE
-                    valid_action_selected = True
-                elif action in ['2', 'trade']:
-                    next_action = Actions.TRADE
+                self.console.print(
+                    'What would you like to do?'
+                    '\nType an action number or name:'
+                )
+                table, action_dict = self.console.action_table(self.state)
+                self.console.print(table)
+                action = clean_string(
+                    input(f'({player_money}) > ')
+                )
+                if action in action_dict:
+                    next_action = action_dict[action]
                     valid_action_selected = True
                 else:
-                    print('Invalid action.')
-            if next_action == Actions.MOVE:
-                print(f'\nWhere do you want to move to?')
+                    self.console.print('Invalid action!')
+
+            if next_action == Action.MOVE:
+                valid_location_selected = False
+
+                self.console.print(
+                    f"\nWhere do you want to move to?"
+                    f"\nType a location name or 'back' for the previous menu:"
+                )
+                table, can_travel_dict, cannot_travel_dict = \
+                    self.console.location_table(self.player)
+                self.console.print(table)
+                while not valid_location_selected:
+                    location_name = clean_string(
+                        input(f'({player_money}) > ')
+                    )
+                    if location_name == 'back':
+                        self.step(advance_day=False)
+                    elif location_name in cannot_travel_dict:
+                        loc = cannot_travel_dict[location_name]
+                        self.console.print(f'Insufficient funds to travel to {loc}.')
+                    elif location_name in can_travel_dict:
+                        loc = can_travel_dict[location_name]
+                        valid_location_selected = True
+                        success, message = self.player.move_location(loc)
+                        assert success, message
+                        self.console.print(message)
+                        self.step(advance_day=True)
+                    else:
+                        self.console.print('Invalid location!')
+
+            elif next_action == Action.TRADE:
+                valid_farmer_selected = False
+
+                self.console.print(
+                    f"\nWhom do you want to trade with?"
+                    f"\nType a farmer's number or name, or 'back' for the previous menu:"
+                )
+                table, farmer_dict = self.console.farmer_table(self.player)
+                self.console.print(table)
+                while not valid_farmer_selected:
+                    farmer_name = clean_string(
+                        input(f'({player_money}) > ')
+                    )
+                    if farmer_name == 'back':
+                        self.step(advance_day=False)
+                    elif farmer_name in farmer_dict:
+                        farmer = farmer_dict[farmer_name]
+                        valid_farmer_selected = True
+                        success, message = self.player.move_farmer(farmer)
+                        assert success, message
+                        self.console.print(message)
+                        self.state = WorldState.AT_FARMER
+                        self.step(advance_day=True)
+
+
+
+
 
