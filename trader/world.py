@@ -65,7 +65,7 @@ class World:
 
     player_params = {
         'init_money': 10,
-        'travel_cost_multiplier': 2,
+        'travel_cost_multiplier': 30,
     }
 
     def __init__(self, seed: int, debug: bool = False):
@@ -81,6 +81,8 @@ class World:
 
         # Current day
         self.today = -1
+        # Current day index (i.e. increases linearly, doesn't wrap for years)
+        self.day_index = -1
 
         self.noise_controller = NoiseController(
             self.seed, self.goods, self.year_length, self.prod_params, self.location_params, self.farmer_params)
@@ -88,6 +90,7 @@ class World:
 
         self.locations = self.init_locations(LOCATIONS_FILE)
         self.farmers = self.init_farmers()
+        # Keep track of all buy and sell prices
 
         # Calculate base abundance (average amount of good per farmer)
         for good in self.goods:
@@ -141,15 +144,16 @@ class World:
         """Parse a user input during a buy transaction.
 
         Determine if the user wants to go back to the current trading Farmer's
-        Location, switch to SELL mode, or actually buy something. If actually
-        buying something, returns the desired Good and buy quantity, else
-        returns just the BACK or SELL action and `None` for the Good and
-        quantity.
+        Location, view inventory, switch to SELL mode, or actually buy
+        something. If actually buying something, returns the desired Good and
+        buy quantity, else returns just the BACK, SELL, or INVENTORY action and
+        `None` for the Good and quantity.
 
         Returns:
             action (Action): `Action.BUY` if actually buying, `Action.BACK` if
-                returning to the current trading Farmer's Location, or
-                `Action.SELL` if switching to SELL mode with the current Farmer.
+                returning to the current trading Farmer's Location,
+                `Action.SELL` if switching to SELL mode with the current Farmer,
+                or `Action.INVENTORY` if viewing inventory.
             good (Optional[Good]): The Good to buy, if buying, else None.
             quantity (int): The quantity to buy, if buying, else None.
 
@@ -163,6 +167,8 @@ class World:
                 return Action.BACK, None, None
             elif clean_string(raw_input) == 'sell':
                 return Action.SELL, None, None
+            elif clean_string(raw_input) == 'inventory':
+                return Action.INVENTORY, None, None
             else:
                 # Actually buying
                 quantity, good_name = parse_transaction(raw_input)
@@ -176,7 +182,7 @@ class World:
                         valid_input = True
                 else:
                     self.console.print('Invalid input!')
-            return Action.BUY, matched_goods[0], quantity
+        return Action.BUY, matched_goods[0], quantity
 
     def get_sell_input(self) -> Tuple[Action, Optional[Good], Optional[int]]:
         """Parse a user input during a sell transaction.
@@ -222,7 +228,7 @@ class World:
     def init_farmers(self) -> List[Farmer]:
         farmers = []
         for location in self.locations:
-            n_farmers_at_location = np.minimum(4, self.rng.geometric(0.33))
+            n_farmers_at_location = np.minimum(4, self.rng.geometric(0.28))
             for n in range(n_farmers_at_location):
                 farmers.append(Farmer(
                     names.get_full_name(), location, self.farmer_params, self.noise_controller, self.goods))
@@ -278,7 +284,7 @@ class World:
         next_action = None
         while not valid_action_selected:
             self.console.print(
-                'What would you like to do?'
+                '\n\nWhat would you like to do?'
                 '\nType an action number or name:'
             )
             table, action_dict = self.console.action_table(self.state)
@@ -290,7 +296,7 @@ class World:
                 next_action = action_dict[action]
                 valid_action_selected = True
             else:
-                self.console.print('Invalid action!')
+                self.console.print(f'Invalid action! ({action})')
         return next_action
 
     def step(self, advance_day: bool) -> bool:
@@ -338,14 +344,16 @@ class World:
 
         """
         if advance_day:
-            self.today = self.next_day()
-        self.update()
+            self.update()
         self.console.print(
-            f'\nDay {self.today + 1}/{self.year_length} in {self.player.location}'
-            f'trading with {self.player.trading_farmer}.'
+            f'\n\nDay {self.today + 1}/{self.year_length} in {self.player.location}'
+            f' trading with {self.player.trading_farmer.name}.'
         )
 
         next_action = self.select_action()
+        while next_action == Action.INVENTORY:
+            self.view_inventory()
+            next_action = self.select_action()
 
         if next_action == Action.BACK:
             # Go back to the Location where the current trading Farmer is
@@ -371,13 +379,15 @@ class World:
         """
         player_money = self.player.print_money()
         if advance_day:
-            self.today = self.next_day()
-        self.update()
+            self.update()
         self.console.print(
-            f'\nDay {self.today + 1}/{self.year_length} in {self.player.location}.'
+            f'\n\nDay {self.today + 1}/{self.year_length} in {self.player.location}.'
         )
 
         next_action = self.select_action()
+        while next_action == Action.INVENTORY:
+            self.view_inventory()
+            next_action = self.select_action()
 
         if next_action == Action.MOVE:
             valid_location_selected = False
@@ -387,7 +397,7 @@ class World:
                 f"\nType a location name or 'back' for the previous menu:"
             )
             table, can_travel_dict, cannot_travel_dict = \
-                self.console.location_table(self.player)
+                self.console.location_table(self.player, self.day_index)
             self.console.print(table)
             while not valid_location_selected:
                 location_name = clean_string(
@@ -401,7 +411,7 @@ class World:
                 elif location_name in can_travel_dict:
                     loc = can_travel_dict[location_name]
                     valid_location_selected = True
-                    success, message = self.player.move_location(loc)
+                    success, message = self.player.move_location(loc, self.day_index)
                     assert success, message
                     self.console.print(message)
                     return True
@@ -415,7 +425,7 @@ class World:
                 f"\nWhom do you want to trade with?"
                 f"\nType a farmer's number or name, or 'back' for the previous menu:"
             )
-            table, farmer_dict = self.console.farmer_table(self.player)
+            table, farmer_dict = self.console.farmer_table(self.player, self.day_index)
             self.console.print(table)
             while not valid_farmer_selected:
                 farmer_name = clean_string(
@@ -428,12 +438,11 @@ class World:
                     valid_farmer_selected = True
                     # Don't advance the day if the Player is returning to the
                     # Farmer they just visited
-                    advance_day = farmer != self.player.last_farmer
-                    success, message = self.player.move_farmer(farmer)
+                    success, message = self.player.move_farmer(farmer, self.day_index)
                     assert success, message
                     self.console.print(message)
                     self.state = WorldState.AT_FARMER
-                    return advance_day
+                    return False
         # It should not be possible to get here
         else:
             raise ValueError(f'Invalid Action state {next_action.name} reached.')
@@ -449,16 +458,15 @@ class World:
                 day, else not.
 
         """
-        self.update()
-
         current_farmer = self.player.trading_farmer
         self.console.print(
-            f'\nDay {self.today + 1}/{self.year_length} buying from '
-            f'{current_farmer.name}.'
+            f'\n\nDay {self.today + 1}/{self.year_length} in {self.player.location}'
+            f' buying from {current_farmer.name}.'
         )
         self.console.print('Type the name and quantity of items to buy.')
         self.console.print(f"Or, type 'back' to return to {self.player.location}.")
         self.console.print(f"Or, type 'sell' to sell to {current_farmer.name}.")
+        self.console.print(f"Or, type 'inventory' to view your inventory.")
 
         table = self.console.buy_table(self.player)
         self.console.print(table)
@@ -472,6 +480,9 @@ class World:
                 return False
             elif action == Action.SELL:
                 self.state = WorldState.SELLING
+                return False
+            elif action == Action.INVENTORY:
+                self.view_inventory()
                 return False
 
             # Otherwise, assume we are in fact trying to buy something
@@ -495,11 +506,11 @@ class World:
         self.console.print('Welcome to TRADER.')
         self.console.print(
             f'You arrive at {self.player.location} with '
-            f'{player_money} in your pocket and a dream to'
+            f'{player_money} in your pocket and a dream to '
             f'find your fortune.'
         )
         self.state = WorldState.AT_LOCATION
-        return False
+        return True
 
     def step_selling(self, advance_day: bool) -> bool:
         """Logic for a world step in the SELLING world state.
@@ -512,18 +523,17 @@ class World:
                 day, else not.
 
         """
-        self.update()
-
         current_farmer = self.player.trading_farmer
         self.console.print(
-            f'\nDay {self.today + 1}/{self.year_length} selling to '
-            f'{current_farmer.name}.'
+            f'\n\nDay {self.today + 1}/{self.year_length} in {self.player.location} '
+            f'selling to {current_farmer.name}.'
         )
         self.console.print('Type the name and quantity of items to sell.')
         self.console.print(f"Or, type 'back' to return to {self.player.location}.")
         self.console.print(f"Or, type 'buy' to buy from {current_farmer.name}.")
 
         table = self.console.sell_table(self.player)
+        self.console.print(f"{current_farmer.name}'s money: ${current_farmer.money:.2f}")
         self.console.print(table)
 
         valid_sale = False
@@ -544,6 +554,19 @@ class World:
         return False
 
     def update(self):
+        self.today = self.next_day()
+        self.day_index += 1
         for location in self.locations:
             location.update(self.today)
+        return
+
+    def view_inventory(self) -> None:
+        """Print Player inventory and money.
+
+        Returns: None
+
+        """
+        self.console.print('Your inventory:')
+        self.console.print(f'Money: {self.player.print_money()}')
+        self.console.print(self.console.inventory_table(self.player))
         return

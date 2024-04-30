@@ -29,6 +29,9 @@ class Location:
 
         self.supply_scores: Dict[Good, float] = {}
         self.prices: Dict[Good, float] = {}
+
+        # Day index of last visit
+        self.last_visit = -9999
         return
 
     def __eq__(self, other: 'Location'):
@@ -37,6 +40,9 @@ class Location:
                 and self.location[0] == other.location[0] \
                 and self.location[1] == other.location[1]
         return False
+
+    def __hash__(self):
+        return hash((self.name, self.location[0], self.location[1]))
 
     def __repr__(self):
         return self.name

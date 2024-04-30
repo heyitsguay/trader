@@ -35,8 +35,18 @@ class Farmer:
         self.money = -1
         self.max_money = -1
 
+        # Day index of last visit
+        self.last_visit = -9999
+        # Resets to False each time the Player goes to a Location
+        self.seen_goods = False
+
         self.init()
         return
+
+    def __eq__(self, other: 'Farmer') -> bool:
+        if not isinstance(other, Farmer):
+            return False
+        return self.name == other.name and self.location == other.location
 
     def __str__(self):
         inv_string = ', '.join([f'{k.name}: {v}' for k, v in self.inventory.items()])
@@ -122,6 +132,9 @@ class Farmer:
         """Compute the sell price of a given Good based on the computed price
         and spread.
 
+        To prevent simple arbitrage, this is computed based on the baseline
+        prices of all Farmers in the same location.
+
         Args:
             good (Good): Good to compute the sell price of.
 
@@ -129,7 +142,9 @@ class Farmer:
             price (float): Sell price of the given Good.
 
         """
-        return round(self.prices[good] * (1 - self.params['spread']), 2)
+        all_farmers = self.location.farmers
+        min_price = min([farmer.prices[good] for farmer in all_farmers])
+        return round(min_price * (1 - self.params['spread']), 2)
 
     def update(self, today: int) -> None:
         """Update farmer variables.
@@ -160,7 +175,7 @@ class Farmer:
             delta = self.noise_controller.sample_good_delta(
                 farmer_prod_rate, self.inventory[good], good.max_amount)
             self.inventory[good] = min(good.max_amount, max(0,
-                self.inventory[good] + delta))
+                int(self.inventory[good] + delta)))
         return
 
     def update_money(self) -> float:

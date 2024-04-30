@@ -18,7 +18,8 @@ class Player:
             player_params: Dict[str, Any],
             noise_controller: NoiseController,
             goods: List[Good]):
-        self.location = location
+        self.location = None
+        self.move_location(location, 0, False)
         self.params = player_params
         self.noise_controller = noise_controller
         self.goods = goods
@@ -28,6 +29,11 @@ class Player:
 
         self.inventory = {good: 0 for good in self.goods}
         self.money = 0
+
+        # Track buy and sell prices seen so far, to cue when there is a good
+        # or bad deal in trade menus
+        self.seen_buy_prices = {good: [] for good in self.goods}
+        self.seen_sell_prices = {good: [] for good in self.goods}
 
         self.init()
         return
@@ -86,14 +92,15 @@ class Player:
 
         """
         cost = round(self.params['travel_cost_multiplier'] *
-            location.distance_to(self.location), 2)
+            location.distance_to(self.location)**2, 2)
         return cost
 
-    def move_farmer(self, farmer: Farmer) -> Tuple[bool, str]:
+    def move_farmer(self, farmer: Farmer, day_index: int) -> Tuple[bool, str]:
         """Within a Location, move to trade with a Farmer.
 
         Args:
             farmer (Farmer): Farmer to move to.
+            day_index (int): Index of the current day.
 
         Returns:
             success (bool): Whether the move was successful.
@@ -103,15 +110,18 @@ class Player:
         if farmer.location != self.location:
             return False, f'Farmer {farmer.name} not present at {self.location}.'
         self.set_new_farmer(farmer)
+        farmer.last_visit = day_index
         return True, f'Now trading with {farmer.name}.'
 
-    def move_location(self, location: Location) -> Tuple[bool, str]:
+    def move_location(self, location: Location, day_index: int, pay: bool = True) -> Tuple[bool, str]:
         """(Attempt to) move to another location.
 
         Moving incurs a cost. You can only move if you can pay the travel cost.
 
         Args:
             location (Location): Location to move to.
+            day_index (int): Index of the current day.
+            pay (bool): If True, pay a travel cost.
 
         Returns:
             success (bool): Whether the move was successful.
@@ -120,13 +130,19 @@ class Player:
         """
         if location == self.location:
             return False, f'Already at {location}.'
-        travel_cost = self.location_travel_cost(location)
-        if travel_cost > self.money:
-            return False, f'${travel_cost:.2f} required to travel to {location}.'
-        self.money -= travel_cost
+        if pay:
+            travel_cost = self.location_travel_cost(location)
+            if travel_cost > self.money:
+                return False, f'${travel_cost:.2f} required to travel to {location}.'
+            self.money -= travel_cost
+        else:
+            travel_cost = 0
         self.location = location
+        for farmer in self.location.farmers:
+            farmer.seen_goods = False
         self.trading_farmer = None
         self.last_farmer = None
+        location.last_visit = day_index
         return True, f'Traveled to {location} for ${travel_cost:.2f}.'
 
     def print_money(self) -> str:
@@ -176,4 +192,21 @@ class Player:
         """
         self.last_farmer = self.trading_farmer
         self.trading_farmer = farmer
+        return
+
+    def update_price_tracking(self, farmer: Farmer, available_goods: List[Good]) -> None:
+        """Update price tracking info from the given Farmer and list of Goods.
+
+        Args:
+            farmer (Farmer): Farmer whose pricing info to add to tracking.
+            available_goods (List[Good]): Goods to update pricing info for.:
+
+        Returns: None
+
+        """
+        if not farmer.seen_goods:
+            for g in available_goods:
+                self.seen_buy_prices[g].append(farmer.buy_price(g))
+                self.seen_sell_prices[g].append(farmer.sell_price(g))
+            farmer.seen_goods = True
         return

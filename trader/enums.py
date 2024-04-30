@@ -10,7 +10,7 @@ class Action(Enum):
     TRADE = 'Trade'
     BUY = 'Buy'
     SELL = 'Sell'
-
+    INVENTORY = 'Inventory'
 
 
 class WorldState(Enum):
