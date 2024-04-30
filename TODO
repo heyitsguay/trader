@@ -1,9 +1,9 @@
-- Next: Add trading stuff to `World`
-  - When at a farmer, ask to buy or sell
-    - Buy: List farmer's goods' names, quantities, prices.
-    - Sell: List player's goods' names, quantities, prices.
-    - Either way, type a number and a good. Calculate if the
+x Next: Add trading stuff to `World`
+  x When at a farmer, ask to buy or sell
+    x Buy: List farmer's goods' names, quantities, prices.
+    x Sell: List player's goods' names, quantities, prices.
+    x Either way, type a number and a good. Calculate if the
       transaction can be done, execute if so.
-    - Return to the same screen. Player can switch from buy/sell to
+    x Return to the same screen. Player can switch from buy/sell to
       the opposite or return to the host location.
-- I think that's everything for the basic mechanics??
+x I think that's everything for the basic mechanics??
