@@ -19,7 +19,7 @@ from .util import clean_string, rgb_interpolate
 
 # Normalizing constant for coloring Farmer and Location names based on the time
 # since their last visit
-C_VISIT = 30
+C_VISIT = 10
 # Number of available nearest locations to move to
 N_LOCATIONS = 10
 
