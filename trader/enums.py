@@ -11,7 +11,7 @@ class Action(Enum):
     BUY = 'Buy'
     SELL = 'Sell'
     INVENTORY = 'Inventory'
-
+    MAP = 'Map'
 
 class WorldState(Enum):
     INIT = 1

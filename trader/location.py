@@ -113,6 +113,18 @@ class Location:
         y1 = other.location[1]
         return np.sqrt((x0 - x1)**2 + (y0 - y1)**2)
 
+    def name_with_info(self) -> str:
+        """Display name, along with number of farmers in parentheses if this
+        location has been visited before.
+
+        Returns:
+            (str): Name, if unvisited, else name and number of farmers.
+
+        """
+        if self.last_visit < 0:
+            return self.name
+        return f'{self.name} ({len(self.farmers)})'
+
     def prod_rate(self, good: Good, day: int) -> float:
         """Calculate today's production rate for a good.
 

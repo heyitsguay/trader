@@ -12,7 +12,7 @@ def create_map_window():
     root.title("Game Map")
 
     # Create a matplotlib figure
-    fig = Figure(figsize=(8, 8), dpi=100)
+    fig = Figure(figsize=(8, 8))
     ax = fig.add_subplot(111)
 
     # Generate random points
@@ -29,9 +29,13 @@ def create_map_window():
     ax.set_xlim(0, 200)
     ax.set_ylim(0, 200)
 
+    # Add labels to the points
+    for i, txt in enumerate(labels):
+        ax.annotate(txt, (x[i], y[i]), textcoords="offset points", xytext=(0, 10), ha='center')
+
     # Add labels using adjustText
-    texts = [ax.text(x[i], y[i], labels[i], ha='center', va='center') for i in range(num_points)]
-    adjust_text(texts, x=x, y=y)
+    # texts = [ax.text(x[i], y[i], labels[i], ha='center', va='center') for i in range(num_points)]
+    # adjust_text(texts, x=x, y=y)
 
     ax.tick_params(top=False, bottom=False, left=False, right=False,
                    labelleft=False, labelbottom=False)

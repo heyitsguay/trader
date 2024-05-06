@@ -66,7 +66,8 @@ def parse_transaction(string: str) -> Tuple[Optional[int], Optional[str]]:
 def rgb_interpolate(
         start_color: Tuple[int, ...],
         end_color: Tuple[int, ...],
-        fraction: float) -> str:
+        fraction: float,
+        hex_code: bool = False) -> str:
     """Interpolate between two RGB tuples based on the fraction, return the
     interpolated color's color code.
 
@@ -75,6 +76,7 @@ def rgb_interpolate(
         end_color (Tuple[int, ...]): End RGB color, with values in 0-255.
         fraction (float): Fraction to interpolate. 0 returns `start_color`,
             1 returns `end_color`.
+        hex_code (bool): If `True`, convert the returned color to a hex code
 
     Returns:
         interpolated_hex_code (str): Interpolated RGB color's color code
@@ -85,4 +87,6 @@ def rgb_interpolate(
         int(start + (end - start) * fraction)
         for start, end in zip(start_color, end_color)
     )
+    if hex_code:
+        return f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
     return f'rgb({rgb[0]},{rgb[1]},{rgb[2]})'

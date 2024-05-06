@@ -2,6 +2,7 @@
 
 """
 import os
+import tkinter as tk
 
 import matplotlib.pyplot as plt
 import names
@@ -9,14 +10,17 @@ import numpy as np
 
 from typing import List, Optional, Tuple
 
-from .console import Console
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
+from .console import Console, C_VISIT
 from .enums import Action, WorldState
 from .farmer import Farmer
 from .good import Good
 from .location import Location
 from .noise_controller import NoiseController
 from .player import Player
-from .util import clean_string, parse_transaction
+from .util import clean_string, parse_transaction, rgb_interpolate
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_DIR, 'data')
@@ -299,6 +303,76 @@ class World:
                 self.console.print(f'Invalid action! ({action})')
         return next_action
 
+    def show_map(self):
+        # Create the main window
+        root = tk.Tk()
+        root.title("World Map")
+
+        # Get screen size to create a window that takes up 95% of the screen
+        w_pix = root.winfo_screenwidth()
+        w_mm = root.winfo_screenmmwidth()
+        w_inch = w_mm / 25.4
+        dpi = int(w_pix / w_inch)
+        h_mm = root.winfo_screenmmheight()
+        h_inch = h_mm / 25.4
+        s_window = 0.95 * min(w_inch, h_inch)
+
+        fig = Figure(figsize=(s_window, s_window), dpi=dpi)
+        ax = fig.add_subplot(111)
+        plt.autoscale(tight=True)
+
+        # Gather points from Location locations
+        xs = []
+        ys = []
+        labels = []
+        player_present = []
+        colors = []
+        sizes = []
+        font_weights = []
+        for location in self.locations:
+            xs.append(1000*location.location[0])
+            ys.append(1000*location.location[1])
+            labels.append(location.name_with_info())
+            is_present = location == self.player.location
+            player_present.append(is_present)
+            if is_present:
+                colors.append('#4444ff')
+                sizes.append(12*12)
+                font_weights.append('bold')
+            else:
+                time_since_last_visit = self.day_index - location.last_visit
+                fraction = min(1, time_since_last_visit / C_VISIT)
+                colors.append(rgb_interpolate((64, 255, 64), (16, 16, 16), fraction, hex_code=True))
+                sizes.append(18*18)
+                font_weights.append('regular')
+
+        ax.scatter(xs, ys, c=colors, s=None, marker='o')
+        ax.set_xlim(0, 1000)
+        ax.set_ylim(0, 1000)
+
+        for x, y, label, weight in zip(xs, ys, labels, font_weights):
+            ax.annotate(label, (x, y), textcoords='offset points', xytext=(0, 10), ha='center', weight=weight)
+
+        ax.tick_params(top=False, bottom=False, left=False, right=False,
+                       labelleft=False, labelbottom=False)
+        ax.set_title("Press 'Q' to quit")
+
+        # Embed the figure in the tkinter window
+        canvas = FigureCanvasTkAgg(fig, master=root)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        def on_key_press(event):
+            if event.char == 'q' or event.char == 'Q':
+                root.quit()
+                root.destroy()
+
+        # Bind the key press event
+        root.bind("<KeyPress>", on_key_press)
+
+        # Start the GUI event loop
+        root.mainloop()
+
     def step(self, advance_day: bool) -> bool:
         """Take one step in the game.
 
@@ -394,7 +468,7 @@ class World:
 
             self.console.print(
                 f"\nWhere do you want to move to?"
-                f"\nType a location name or 'back' for the previous menu:"
+                f"\nType a location name, or\n'back' for the previous menu, or\n'map' for the map:"
             )
             table, can_travel_dict, cannot_travel_dict = \
                 self.console.location_table(self.player, self.day_index)
@@ -405,6 +479,8 @@ class World:
                 )
                 if location_name == 'back':
                     return False
+                elif location_name == 'map':
+                    self.show_map()
                 elif location_name in cannot_travel_dict:
                     loc = cannot_travel_dict[location_name]
                     self.console.print(f'Insufficient funds to travel to {loc}.')
@@ -443,6 +519,9 @@ class World:
                     self.console.print(message)
                     self.state = WorldState.AT_FARMER
                     return False
+
+        elif next_action == Action.MAP:
+            self.show_map()
         # It should not be possible to get here
         else:
             raise ValueError(f'Invalid Action state {next_action.name} reached.')

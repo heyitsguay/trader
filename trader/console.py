@@ -56,7 +56,7 @@ class Console(RichConsole):
         action_dict = {}
 
         if state == WorldState.AT_LOCATION:
-            actions = [Action.MOVE, Action.TRADE, Action.INVENTORY]
+            actions = [Action.MOVE, Action.TRADE, Action.INVENTORY, Action.MAP]
         elif state == WorldState.AT_FARMER:
             actions = [Action.BACK, Action.BUY, Action.SELL, Action.INVENTORY]
         else:
@@ -223,7 +223,7 @@ class Console(RichConsole):
 
             row = [
                 Text(f'{i+1}.', style=style1),
-                Text(loc1.name, style=style1),
+                Text(loc1.name_with_info(), style=style1),
                 Text(f'${c1:.2f}', style=style1),
                 '', '', '']
 
@@ -243,7 +243,7 @@ class Console(RichConsole):
                     style2 = self.style_visit(day_index - loc2.last_visit)
 
                 row[3] = Text(f'{col1_idx + i + 1}.', style=style2)
-                row[4] = Text(loc2.name, style=style2)
+                row[4] = Text(loc2.name_with_info(), style=style2)
                 row[5] = Text(f'${c2:.2f}', style=style2)
 
             table.add_row(*row)
