@@ -1,3 +1,7 @@
+- Basic LLM integration is up, now parsing deal evaluation needs to be added.
+  - When a deal if proffered, the player should be asked if they accept. Only end
+    the interaction when both the player and farmer accept.
+  - If a con happened, summarize what the con was and add it to the con history.
 x Next: Add trading stuff to `World`
   x When at a farmer, ask to buy or sell
     x Buy: List farmer's goods' names, quantities, prices.

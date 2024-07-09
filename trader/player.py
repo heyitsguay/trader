@@ -1,9 +1,7 @@
 """The player.
 
 """
-import numpy as np
-
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .farmer import Farmer
 from .good import Good
@@ -38,13 +36,20 @@ class Player:
         self.init()
         return
 
-    def buy(self, good: Good, quantity: int, farmer: Farmer) -> Tuple[bool, str]:
+    def buy(
+            self,
+            good: Good,
+            quantity: int,
+            farmer: Farmer,
+            price: Optional[float] = None) -> Tuple[bool, str]:
         """Buy a quantity of Goods from a Farmer.
 
         Args:
             good (Good): Good to buy.
             quantity (int): Quantity of goods to buy.
             farmer (Farmer): Farmer to buy from.
+            price (Optional[float]): If `None`, use `good`'s default buy price
+                for `farmer`, else use `buy_price` as the per-unit buy price.
 
         Returns:
             success (bool): Whether the buy was successful.
@@ -55,7 +60,11 @@ class Player:
             return False, f'Quantity ({quantity}) must be an integer greater than 0.'
         if farmer.inventory[good] < quantity:
             return False, f'{farmer.name} does not have {quantity} of {good}.'
-        buy_price = round(farmer.buy_price(good) * quantity, 2)
+        if price is not None and price < 0:
+            return False, f'Price ({price}) must be positive.'
+        elif price is None:
+            price = farmer.buy_price(good)
+        buy_price = round(price * quantity, 2)
         if buy_price > self.money:
             return False, f'You do not have enough money to buy {quantity} of {good} (${buy_price:.2f}).'
 

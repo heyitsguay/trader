@@ -12,6 +12,9 @@ class Action(Enum):
     SELL = 'Sell'
     INVENTORY = 'Inventory'
     MAP = 'Map'
+    BUY_NEGOTIATION = 'Buy Negotiation'
+    SELL_NEGOTIATION = 'Sell Negotiation'
+
 
 class WorldState(Enum):
     INIT = 1
@@ -22,3 +25,5 @@ class WorldState(Enum):
     BUYING = 6
     SELLING = 7
     GAME_OVER = 8
+    BUY_NEGOTIATION = 9
+    SELL_NEGOTIATION = 10
