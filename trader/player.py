@@ -61,7 +61,7 @@ class Player:
         if farmer.inventory[good] < quantity:
             return False, f'{farmer.name} does not have {quantity} of {good}.'
         if price is not None and price < 0:
-            return False, f'Price ({price}) must be positive.'
+            return False, f'Price ({price}) must be nonnegative.'
         elif price is None:
             price = farmer.buy_price(good)
         buy_price = round(price * quantity, 2)
@@ -164,13 +164,20 @@ class Player:
         """
         return f'${self.money:.2f}'
 
-    def sell(self, good: Good, quantity: int, farmer: Farmer) -> Tuple[bool, str]:
+    def sell(
+            self,
+            good: Good,
+            quantity: int,
+            farmer: Farmer,
+            price: Optional[float] = None) -> Tuple[bool, str]:
         """Sell a quantity of a Good to a Farmer.
 
         Args:
             good (Good): Good to sell.
             quantity (int): Quantity of goods to sell.
             farmer (Farmer): Farmer to sell to.
+            price (Optional[float]): If `None`, use `good`'s default buy price
+                for `farmer`, else use `buy_price` as the per-unit buy price.
 
         Returns:
             success (bool): True if the sell was successful.
@@ -181,7 +188,11 @@ class Player:
             return False, f'Quantity ({quantity}) must be an integer greater than 0.'
         if self.inventory[good] < quantity:
             return False, f'You do not have {quantity} of {good}.'
-        sell_price = round(farmer.sell_price(good) * quantity, 2)
+        if price is not None and price < 0:
+            return False, f'Price ({price}) must be nonnegative.'
+        elif price is None:
+            price = farmer.sell_price(good)
+        sell_price = round(price * quantity, 2)
         if sell_price > farmer.money:
             return False, f'{farmer.name} does not have enough money to buy {quantity} of {good}. (${sell_price:.2f})'
         self.inventory[good] -= quantity
