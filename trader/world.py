@@ -12,12 +12,16 @@ from typing import List, Optional, Tuple
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from rich.live import Live
+from rich.prompt import Prompt
+from rich.spinner import Spinner
 
 from .console import Console, C_VISIT
 from .enums import Action, WorldState
 from .farmer import Farmer
 from .good import Good
 from .location import Location
+from .model import Model
 from .noise_controller import NoiseController
 from .player import Player
 from .util import clean_string, parse_transaction, rgb_interpolate
@@ -59,9 +63,9 @@ class World:
         'min_n_goods': 1,
         'supply_sensitivity': 1,
         'spread': 0.1,
-        'lower_money_multiplier': 10,
-        'upper_money_multiplier': 30,
-        'money_growth_factor': 1.5,
+        'lower_money_multiplier': 25,
+        'upper_money_multiplier': 50,
+        'money_growth_factor': 1.7,
         'p_money_growth': 0.36,
         'money_decay_factor': 0.9,
         'p_money_decay': 0.4,
@@ -70,6 +74,11 @@ class World:
     player_params = {
         'init_money': 10,
         'travel_cost_multiplier': 30,
+    }
+
+    con_params = {
+        'buy_threshold': 0.2,
+        'sell_threshold': 2,
     }
 
     def __init__(self, seed: int, debug: bool = False):
@@ -105,6 +114,8 @@ class World:
         self.state = WorldState.INIT
 
         self.console = Console()
+
+        self.model = Model(self.player, self.goods, self.con_params)
 
         # Initial debug information
         if self.debug:
@@ -166,9 +177,11 @@ class World:
         quantity = None
         matched_goods = []
         while not valid_input:
-            raw_input = input(f'{self.player.print_money()} > ')
+            raw_input = input(f'({self.player.print_money()}) > ')
             if clean_string(raw_input) == 'back':
                 return Action.BACK, None, None
+            elif clean_string(raw_input) == 'negotiate':
+                return Action.BUY_NEGOTIATION, None, None
             elif clean_string(raw_input) == 'sell':
                 return Action.SELL, None, None
             elif clean_string(raw_input) == 'inventory':
@@ -209,9 +222,11 @@ class World:
         quantity = None
         matched_goods = []
         while not valid_input:
-            raw_input = input(f'{self.player.print_money()} > ')
+            raw_input = input(f'({self.player.print_money()}) > ')
             if clean_string(raw_input) == 'back':
                 return Action.BACK, None, None
+            elif clean_string(raw_input) == 'negotiate':
+                return Action.SELL_NEGOTIATION, None, None
             elif clean_string(raw_input) == 'buy':
                 return Action.BUY, None, None
             else:
@@ -228,6 +243,29 @@ class World:
                 else:
                     self.console.print('Invalid input!')
         return Action.SELL, matched_goods[0], quantity
+
+    def get_yesno_input(self, color: Optional[str] = None) -> bool:
+        """Get an input from the user that must be 'yes' (or 'y') or 'no'
+        (or 'n').
+
+        Args:
+            color (Optional[str]): Input prompt color as a Rich console style.
+
+        Returns:
+            answer (bool): `True` if yes, `False` if no.
+
+        """
+        while True:
+            style_start = f'[{color}]' if color else ''
+            style_end = '[/]' if color else ''
+            raw_input = Prompt.ask(f'{style_start}({self.player.print_money()}) > {style_end}')
+            clean_input = clean_string(raw_input)
+            if clean_input in ['yes', 'y']:
+                return True
+            elif clean_input in ['no', 'n']:
+                return False
+            else:
+                self.console.print('Invalid input! Should be "yes" or "no".')
 
     def init_farmers(self) -> List[Farmer]:
         farmers = []
@@ -401,6 +439,12 @@ class World:
         elif self.state == WorldState.SELLING:
             advance_next = self.step_selling(advance_day)
 
+        elif self.state == WorldState.BUY_NEGOTIATION:
+            advance_next = self.step_buying_negotiation(advance_day)
+
+        elif self.state == WorldState.SELL_NEGOTIATION:
+            advance_next = self.step_selling_negotiation(advance_day)
+
         else:
             raise NotImplementedError
 
@@ -437,6 +481,10 @@ class World:
             self.state = WorldState.BUYING
         elif next_action == Action.SELL:
             self.state = WorldState.SELLING
+        elif next_action == Action.BUY_NEGOTIATION:
+            self.state = WorldState.BUY_NEGOTIATION
+        elif next_action == Action.SELL_NEGOTIATION:
+            self.state = WorldState.SELL_NEGOTIATION
 
         return False
 
@@ -543,6 +591,7 @@ class World:
             f' buying from {current_farmer.name}.'
         )
         self.console.print('Type the name and quantity of items to buy.')
+        self.console.print(f"Or, type 'negotiate' to haggle a better buy price.")
         self.console.print(f"Or, type 'back' to return to {self.player.location}.")
         self.console.print(f"Or, type 'sell' to sell to {current_farmer.name}.")
         self.console.print(f"Or, type 'inventory' to view your inventory.")
@@ -557,6 +606,9 @@ class World:
                 self.state = WorldState.AT_LOCATION
                 self.player.set_new_farmer(None)
                 return False
+            elif action == Action.BUY_NEGOTIATION:
+                self.state = WorldState.BUY_NEGOTIATION
+                return False
             elif action == Action.SELL:
                 self.state = WorldState.SELLING
                 return False
@@ -569,6 +621,153 @@ class World:
                 buy_good, buy_quantity, current_farmer)
             self.console.print(message)
         return False
+
+    def step_buying_negotiation(self, advance_day: bool) -> bool:
+        """Logic for a world step in the BUY_NEGOTIATION world state.
+
+        Args:
+            advance_day (bool): If True, advance the game day when applicable.
+
+        Returns:
+            advance_next(bool): If True, next call to `step` will advance the
+                day, else not.
+
+        """
+        current_farmer = self.player.trading_farmer
+        self.console.print(
+            f'[#cccccc]\n\nDay {self.today + 1}/{self.year_length} in {self.player.location}. '
+            f'Negotiate a purchase with {current_farmer.name}.[/]')
+        self.console.print(f"[#cccccc]Or, type 'back' to return to {self.player.location}.[/]")
+        self.console.print(f"[#cccccc]Or, type 'buy' to buy from {current_farmer.name} without negotiating.[/]")
+        self.console.print(f"[#cccccc]Or, type 'sell' to sell to {current_farmer.name}.[/]")
+        self.console.print(f"[#cccccc]Or, type 'inventory' to view your inventory.[/]")
+        table = self.console.buy_table(self.player)
+        self.console.print(table)
+
+        # Reset the model's random seed in a predictable way
+        self.model.reset(current_farmer)
+
+        # Introduction from the farmer
+        with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
+            message = self.model.introduce(
+                current_farmer, WorldState.BUY_NEGOTIATION)
+            live.update(f'» {message}\n')
+
+        while True:
+            raw_input = input(f'({self.player.print_money()}) > ')
+            with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
+                action, purchase_info, message = self.model.negotiate_buy(
+                    current_farmer, raw_input)
+                if action == Action.BACK:
+                    self.state = WorldState.AT_LOCATION
+                    self.player.set_new_farmer(None)
+                    return False
+                elif action == Action.BUY:
+                    self.state = WorldState.BUYING
+                    return False
+                elif action == Action.SELL:
+                    self.state = WorldState.SELLING
+                    return False
+                elif action == Action.INVENTORY:
+                    live.update('')
+                else:
+                    live.update(f'\n» {message.lstrip("TRADER: ")}\n')
+            if action == Action.INVENTORY:
+                self.view_inventory()
+
+            valid_purchase = purchase_info['valid']
+            if valid_purchase:
+                good = purchase_info['good']
+                quantity = purchase_info['quantity']
+                price = purchase_info['price']
+                total_price = round(quantity * price, 2)
+                self.console.print(f'[#ff9900]Make a buy for {quantity} of {good} for ${price:.2f} each (total: ${total_price:.2f})?[/] \[yes/no]')
+                make_deal = self.get_yesno_input(color='#ff9900')
+
+                if make_deal:
+                    valid_purchase, purchase_message = self.player.buy(
+                        good, quantity, current_farmer, price)
+
+                    if valid_purchase:
+                        # Check to see if the current Farmer has been conned
+                        base_price = current_farmer.buy_price(good)
+                        if price / base_price < self.con_params['buy_threshold']:
+                            self.model.summarize_buy_con(base_price, price)
+
+                    self.model.chat_history.append(
+                        {'role': 'user', 'content': 'USER: ' + purchase_message.replace('You do', 'User does')})
+
+                    self.console.print(f'[#cccccc]{purchase_message}[/]')
+
+    def step_selling_negotiation(self, advance_day: bool) -> bool:
+        """Logic for a world step in the SELL_NEGOTIATION world state.
+
+        Args:
+            advance_day (bool): If True, advance the game day when applicable.
+
+        Returns:
+            advance_next(bool): If True, next call to `step` will advance the
+                day, else not.
+
+        """
+        current_farmer = self.player.trading_farmer
+        self.console.print(
+            f'[#cccccc]\n\nDay {self.today + 1}/{self.year_length} in {self.player.location}. '
+            f'Negotiate a sale with {current_farmer.name}.[/]')
+        self.console.print(f"[#cccccc]Or, type 'back' to return to {self.player.location}.[/]")
+        self.console.print(f"[#cccccc]Or, type 'buy' to buy from {current_farmer.name}.[/]")
+        self.console.print(f"[#cccccc]Or, type 'sell' to sell to {current_farmer.name} without negotiating.[/]")
+        self.console.print(f"[#cccccc]Or, type 'inventory' to view your inventory.[/]")
+        table = self.console.sell_table(self.player)
+        self.console.print(f"[#cccccc]{current_farmer.name}'s money: ${current_farmer.money:.2f}[/]")
+        self.console.print(table)
+
+        # Reset the model's random seed in a predictable way
+        self.model.reset(current_farmer)
+
+        # Introduction from the farmer
+        with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
+            message = self.model.introduce(
+                current_farmer, WorldState.SELL_NEGOTIATION)
+            live.update(f'» {message}\n')
+
+        while True:
+            raw_input = input(f'({self.player.print_money()}) > ')
+            with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
+                action, sale_info, message = self.model.negotiate_sell(raw_input)
+                if action == Action.BACK:
+                    self.state = WorldState.AT_LOCATION
+                    self.player.set_new_farmer(None)
+                    return False
+                elif action == Action.BUY:
+                    self.state = WorldState.BUYING
+                    return False
+                elif action == Action.SELL:
+                    self.state = WorldState.SELLING
+                    return False
+                elif action == Action.INVENTORY:
+                    self.view_inventory()
+                    return False
+
+                live.update(f'\n» {message.lstrip("TRADER: ")}\n')
+
+            valid_sale = sale_info['valid']
+            if valid_sale:
+                good = sale_info['good']
+                quantity = sale_info['quantity']
+                price = sale_info['price']
+                total_price = round(quantity * price, 2)
+                self.console.print(f'[#ff9900]Make a sale for {quantity} of {good} for ${price:.2f} each (total: ${total_price:.2f})?[/] \[yes/no]')
+                make_deal = self.get_yesno_input(color='#ff9900')
+
+                if make_deal:
+                    valid_sale, sale_message = self.player.sell(
+                        good, quantity, current_farmer, price)
+
+                    self.model.chat_history.append(
+                        {'role': 'user', 'content': sale_message.replace('You do', 'User does')})
+
+                    self.console.print(f'[#cccccc]{sale_message}[/]')
 
     def step_init(self, advance_day: bool) -> bool:
         """Logic for a world step in the INIT world state.
@@ -609,6 +808,7 @@ class World:
         )
         self.console.print('Type the name and quantity of items to sell.')
         self.console.print(f"Or, type 'back' to return to {self.player.location}.")
+        self.console.print(f"Or, type 'negotiate' to haggle a better sale price.")
         self.console.print(f"Or, type 'buy' to buy from {current_farmer.name}.")
 
         table = self.console.sell_table(self.player)
@@ -621,6 +821,9 @@ class World:
             if action == Action.BACK:
                 self.state = WorldState.AT_LOCATION
                 self.player.set_new_farmer(None)
+                return False
+            elif action == Action.SELL_NEGOTIATION:
+                self.state = WorldState.SELL_NEGOTIATION
                 return False
             elif action == Action.BUY:
                 self.state = WorldState.BUYING
@@ -648,4 +851,5 @@ class World:
         self.console.print('Your inventory:')
         self.console.print(f'Money: {self.player.print_money()}')
         self.console.print(self.console.inventory_table(self.player))
+        self.console.input('[#cccccc]Press any key to continue[/]')
         return

@@ -58,12 +58,14 @@ class Console(RichConsole):
         if state == WorldState.AT_LOCATION:
             actions = [Action.MOVE, Action.TRADE, Action.INVENTORY, Action.MAP]
         elif state == WorldState.AT_FARMER:
-            actions = [Action.BACK, Action.BUY, Action.SELL, Action.INVENTORY]
+            actions = [
+                Action.BACK, Action.BUY, Action.SELL, Action.BUY_NEGOTIATION,
+                Action.SELL_NEGOTIATION, Action.INVENTORY]
         else:
             raise NotImplementedError(f'No action table for {state.name}')
 
         for i, action in enumerate(actions):
-            table.add_row(f'{i + 1}.', action.name.capitalize())
+            table.add_row(f'{i + 1}.', action.value)
             action_dict[action.name.lower()] = action
             action_dict[str(i + 1)] = action
 
