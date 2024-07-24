@@ -143,14 +143,15 @@ class Model:
             purchase_info = self._evaluate_buy(self.chat_history)
 
             # Check for a con
-            base_price = farmer.buy_price(purchase_info['good'])
-            if (len(self.buy_con_history) > 0 and purchase_info['valid'] and
-                    purchase_info['price'] / base_price < self.con_params['buy_threshold']):
-                deal_refused = self._evaluate_con(
-                    self.chat_history, self.buy_con_history)
-                if deal_refused:
-                    purchase_info = _invalid_info()
-                    output += '\n[#ff9900]Deal refused! Too similar to a past con.[/]'
+            if purchase_info['valid']:
+                base_price = farmer.buy_price(purchase_info['good'])
+                if (len(self.buy_con_history) > 0 and
+                        purchase_info['price'] / base_price < self.con_params['buy_threshold']):
+                    deal_refused = self._evaluate_con(
+                        self.chat_history, self.buy_con_history)
+                    if deal_refused:
+                        purchase_info = _invalid_info()
+                        output += '\n[#ff9900]Deal refused! Too similar to a past con.[/]'
 
         return Action.BUY_NEGOTIATION, purchase_info, output
 
@@ -185,14 +186,15 @@ class Model:
             sale_info = self._evaluate_sell(self.chat_history)
 
             # Check for a con
-            base_price = farmer.sell_price(sale_info['good'])
-            if (len(self.sell_con_history) > 0 and sale_info['valid'] and
-                    base_price / sale_info['price'] > self.con_params['sell_threshold']):
-                deal_refused = self._evaluate_con(
-                    self.chat_history, self.sell_con_history)
-                if deal_refused:
-                    sale_info = _invalid_info()
-                    output += '\n[#ff9900]Deal refused! Too similar to a past con.[/]'
+            if sale_info['valid']:
+                base_price = farmer.sell_price(sale_info['good'])
+                if (len(self.sell_con_history) > 0 and
+                        base_price / sale_info['price'] > self.con_params['sell_threshold']):
+                    deal_refused = self._evaluate_con(
+                        self.chat_history, self.sell_con_history)
+                    if deal_refused:
+                        sale_info = _invalid_info()
+                        output += '\n[#ff9900]Deal refused! Too similar to a past con.[/]'
 
         return Action.SELL_NEGOTIATION, sale_info, output
 
