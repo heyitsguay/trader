@@ -1,4 +1,6 @@
-- Add sale con evaluation
+- Add brief farmer-player interaction summaries that farmers save to use for introductions.
+x Fix buy con evaluation to actually use the con histories.
+x Add sale con evaluation
 x Figure out how to use a spinner properly within the buy and sell negotiations.
 x Make LLM interactions more robust to failure
 x Basic LLM integration is up, now parsing deal evaluation needs to be added.

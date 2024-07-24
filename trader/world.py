@@ -81,15 +81,17 @@ class World:
         'sell_threshold': 2,
     }
 
-    def __init__(self, seed: int, debug: bool = False):
+    def __init__(self, seed: int, request_url: str, debug: bool = False):
         """Constructor.
 
         Args:
             seed (int): RNG seed.
+            request_url (str): URL for LLM requests.
             debug (bool): If True, produce debug information.
 
         """
         self.seed = seed
+        self.request_url = request_url
         self.debug = debug
 
         # Current day
@@ -115,7 +117,8 @@ class World:
 
         self.console = Console()
 
-        self.model = Model(self.player, self.goods, self.con_params)
+        self.model = Model(
+            self.request_url, self.player, self.goods, self.con_params)
 
         # Initial debug information
         if self.debug:
@@ -654,7 +657,9 @@ class World:
             live.update(f'» {message}\n')
 
         while True:
-            raw_input = input(f'({self.player.print_money()}) > ')
+            raw_input = ''
+            while raw_input == '':
+                raw_input = input(f'({self.player.print_money()}) > ')
             with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
                 action, purchase_info, message = self.model.negotiate_buy(
                     current_farmer, raw_input)
@@ -732,7 +737,9 @@ class World:
             live.update(f'» {message}\n')
 
         while True:
-            raw_input = input(f'({self.player.print_money()}) > ')
+            raw_input = ''
+            while raw_input == '':
+                raw_input = input(f'({self.player.print_money()}) > ')
             with Live(Spinner('simpleDots', text='[#cccccc]Thinking[/]'), refresh_per_second=3) as live:
                 action, sale_info, message = self.model.negotiate_sell(raw_input)
                 if action == Action.BACK:
@@ -763,6 +770,12 @@ class World:
                 if make_deal:
                     valid_sale, sale_message = self.player.sell(
                         good, quantity, current_farmer, price)
+
+                    if valid_sale:
+                        # Check to see if the current Farmer has been conned
+                        base_price = current_farmer.sell_price(good)
+                        if price / base_price > self.con_params['sell_threshold']:
+                            self.model.summarize_sell_con(base_price, price)
 
                     self.model.chat_history.append(
                         {'role': 'user', 'content': sale_message.replace('You do', 'User does')})
