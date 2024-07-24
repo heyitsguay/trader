@@ -3,8 +3,8 @@ import sys
 from trader.world import World
 
 
-def main(seed: int, debug: bool):
-    world = World(seed, debug)
+def main(seed: int, request_url: str, debug: bool):
+    world = World(seed, request_url, debug)
     advance_day = True
     while True:
         advance_day = world.step(advance_day)
@@ -16,7 +16,10 @@ if __name__ == '__main__':
     seed = 134
     if len(args) > 0:
         seed = int(args[0])
-    debug = False
+    request_url = 'http://mattg-2022:5000/v1/chat/completions'
     if len(args) > 1:
-        debug = int(args[1]) > 0
-    main(seed, debug)
+        request_url = args[1]
+    debug = False
+    if len(args) > 2:
+        debug = int(args[2]) > 0
+    main(seed, request_url, debug)
