@@ -1,0 +1,9 @@
+
+tkinter
+names
+numpy
+inflect
+requests
+matplotlib
+perlin_numpy
+rich
