@@ -41,7 +41,7 @@ python start.py [REQUEST URL]
 ```
 Where `[REQUEST URL]` is the URL to send requests to the _text-generation-webui_ server API, e.g. `http://0.0.0.0:5000/v1/chat/completions` if running the server and _trader_ on the same machine.
 
-Move around or Trade with the locals, but beware -- each Move costs money! Also, there's not really a failure condition right now. If you run out of sufficient money to do anything you're just stuck and you have to restart.
+Move around or Trade with the locals, but beware -- each Move costs money! Also, there's not really a failure condition right now. If you run out of sufficient money to do anything you're just stuck and you have to kill the process with Ctrl+C or Ctrl+D and restart.
 
 **This is alpha software**, with no serious intention of ever having a full gameplay experience with no rough edges. Feel free to file issues, I may or may not address them.
 
