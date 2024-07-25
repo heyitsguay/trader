@@ -31,7 +31,7 @@ Once running, open the server's local URL in your browser (by default, `http://0
 ```
 Successfully loaded UCLA-AGI_Gemma-2-9B-It-SPPO-Iter3.
 ```
-At this point, note the API URL (by default, `http://0.0.0.0:5000`). _trader_ requests will route to `${API_URL}/v1/chat/completions`. This URL will only work if you are playing _trader_ on the same machine where you are running _text-generation-webui_. Using port forwarding, a mesh VPN like Tailscale, or a cloud server, you can connect a remote server running _text-generation-webui_ to your local machine running _trader_, in which case the API URL may not be on _localhost_ (0.0.0.0).
+At this point, note the API URL (by default, `http://0.0.0.0:5000`). _trader_ requests will route to `${API_URL}/v1/chat/completions`. The `0.0.0.0` URL will only work if you are playing _trader_ on the same machine where you are running _text-generation-webui_. Using port forwarding, a mesh VPN like Tailscale, or a cloud server, you can connect a remote server running _text-generation-webui_ to your local machine running _trader_, in which case the API URL may not be on _localhost_ (0.0.0.0).
 
 ## Play
 
