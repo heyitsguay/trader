@@ -34,7 +34,7 @@ LOCATIONS_FILE = os.path.join(DATA_DIR, 'locations.txt')
 class World:
     wheat = Good('wheat', 0.1, 0.8, 32, 2, 10, 100)
     corn = Good('corn', 0.25, 0.8, 24, 2.5, 8, 100)
-    apples = Good('apples', 0.5, 0.5, 30, 3.5, 6, 80)
+    apples = Good('apple', 0.5, 0.5, 30, 3.5, 6, 80)
     milk = Good('milk', 1.5, 0.6, 10, 4, 7, 50)
     steak = Good('steak', 5, 0.3, 8, 4, 4, 40)
     goods = [wheat, corn, apples, milk, steak]
