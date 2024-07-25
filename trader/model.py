@@ -28,12 +28,28 @@ TEMPLATE_SELL_BASE_PRICE = '[[SELL_BASE_PRICE]]'
 
 
 class Model:
+    """Interface to an LLM for interactive dialogue and negotiations between the
+    Player and Farmers.
+
+    Handles fundamental LLM interactions, as well as operations specific to buy
+    and sell negotiations with Farmers.
+
+    """
     def __init__(
             self,
             request_url: str,
             player: Player,
             world_goods: List[Good],
             con_params: Dict[str, Any]):
+        """Constructor.
+
+        Args:
+            request_url (str): The URL for the LLM API server.
+            player (Player): The game's Player.
+            world_goods (List[Good]): All the Goods available in the World.
+            con_params (Dict[str, Any]): Parameters dictating when to check if a
+                con happened in a buy or sell negotiation.
+        """
         self.request_url = request_url
         self.player = player
         self.world_goods = world_goods
