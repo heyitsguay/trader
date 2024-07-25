@@ -1,3 +1,5 @@
+<div align="center"> <img src="https://raw.githubusercontent.com/heyitsguay/trader/main/assets/banner.png"> </div>
+
 # trader
 A text-based trading game in the terminal, with traders powered by local LLMs!
 
