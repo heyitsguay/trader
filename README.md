@@ -37,11 +37,11 @@ At this point, note the API URL (by default, `http://0.0.0.0:5000`). _trader_ re
 
 Once your _trader_ venv is set up, and you have a server running _text-generation-webui_, you can play! Make sure the _trader_ venv is active, navigate to the _trader_ project root, and run
 ```
-python start.py [SEED] [REQUEST URL]
+python start.py [REQUEST URL]
 ```
-Where `[SEED]` is a positive integer, and `[REQUEST URL]` is the URL to send requests to the _text-generation-webui_ server API, e.g. `http://0.0.0.0:5000/v1/chat/completions` if running the server and _trader_ on the same machine.
+Where `[REQUEST URL]` is the URL to send requests to the _text-generation-webui_ server API, e.g. `http://0.0.0.0:5000/v1/chat/completions` if running the server and _trader_ on the same machine.
 
-Move around or Trade with the locals, but beware -- each Move costs money! Also there's not really a failure condition right now. If you run out of sufficient money to do anything you're just stuck and you have to restart.
+Move around or Trade with the locals, but beware -- each Move costs money! Also, there's not really a failure condition right now. If you run out of sufficient money to do anything you're just stuck and you have to restart.
 
 **This is alpha software**, with no serious intention of ever having a full gameplay experience with no rough edges. Feel free to file issues, I may or may not address them.
 
