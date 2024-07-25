@@ -35,7 +35,7 @@ At this point, note the API URL (by default, `http://0.0.0.0:5000`). _trader_ re
 
 ## Play
 
-Once your _trader_ venv is set up and you have a server running _text-generation-webui_, you can play! Make sure the _trader_ venv is active, navigate to the _trader_ project root, and run
+Once your _trader_ venv is set up, and you have a server running _text-generation-webui_, you can play! Make sure the _trader_ venv is active, navigate to the _trader_ project root, and run
 ```
 python start.py [SEED] [REQUEST URL]
 ```
